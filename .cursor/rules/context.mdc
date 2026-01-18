@@ -1,0 +1,90 @@
+---
+description: gherkinfmt project context and conventions
+globs:
+alwaysApply: true
+---
+
+# gherkinfmt Project
+
+An opinionated Gherkin formatter with zero configuration. See [README.md](../README.md) for full documentation (API, formatting rules, usage examples).
+
+## Project Structure
+
+```
+gherkinfmt/
+├── src/
+│   ├── index.ts      # Public API (check, format)
+│   └── cli.ts        # CLI interface
+├── test/             # Vitest tests (*.test.ts)
+├── resource/         # Test Gherkin files (.feature)
+├── bin/              # CLI binary
+└── dist/             # Build output (ESM, CJS, UMD)
+```
+
+## Technology Stack
+
+- TypeScript (ES2022, strict mode)
+- Node.js >= 18.0.0 (pinned in package.json engines and CI/CD)
+- Vitest for testing (with 80% coverage threshold)
+- esbuild for bundling (ESM, CJS, UMD formats)
+- semantic-release for versioning
+- ts-standard for linting (no separate ESLint/Prettier)
+- Docker support (Dockerfile, GitHub Container Registry)
+
+## TypeScript Conventions
+
+- Use `node:` prefix for built-in imports: `import { readFileSync } from 'node:fs'`
+- Use `.js` extension in relative imports: `import { format } from './index.js'`
+- Interface names use descriptive suffixes: CliOptions, FormatterOptions, *Node
+- Function names follow verb + noun pattern: parseArgs, checkFile, formatFile
+- Enum names use PascalCase: TokenType
+- Strict TypeScript config with noUncheckedIndexedAccess, noUnusedLocals, noImplicitReturns
+
+## Testing Conventions
+
+- Test files: `test/*.test.ts`
+- Use Vitest with describe/it pattern
+- Import from `'vitest'`: `import { describe, it, expect } from 'vitest'`
+
+## Documentation
+
+- Use JSDoc for public API functions with @param, @returns, @example blocks
+- Example code blocks in JSDoc should be TypeScript
+
+## CLI Conventions
+
+- Use full form options only (--check, --write, --version, --help)
+- No short form aliases (-c, -w, -v, -h)
+- Exit code 0 for success, 1 for failure
+- Provide clear error messages with suggestions
+- Show progress indicators (checkmark for success, x for errors)
+- Include file counts and summary after processing
+
+## Verification Steps
+
+Before committing changes, run these verification steps:
+
+1. **Linting**: `npm run lint` - Check code quality (warnings for console in CLI are expected)
+2. **Unit Tests**: `npm run test` - Verify all tests pass
+3. **Code Coverage**: `npm run test:coverage` - Check coverage metrics
+4. **Build**: `npm run build && npm run build:cli` - Ensure all formats build successfully
+
+## Error Handling
+
+- Use try-catch blocks with graceful degradation
+- Return result objects: `{ ok: boolean, error?: string }`
+- Never throw errors from public API
+- Provide meaningful error messages
+
+## Resource Files
+
+- Test examples in `resource/*.feature`
+- Use real-world Gherkin patterns for testing
+
+## Post-Work
+
+After implementing a feature:
+
+1. **Update README.md** - Document new formatting rules or API changes
+2. **Update resource files** - Add test examples
+3. **Git commit** - Use semantic-release pattern (feat:, fix:, docs:, etc.)
