@@ -3,12 +3,11 @@ import { format, check } from '../src/index.js'
 
 describe('Formatter', () => {
   describe('basic formatting', () => {
-    it('should return input unchanged (stub implementation)', () => {
+    it('should format a simple feature', () => {
       const input = 'Feature: My Feature'
       const result = format(input)
 
-      // Stub returns input unchanged
-      expect(result).toBe(input)
+      expect(result).toBe('Feature: My Feature\n')
     })
 
     it('should handle empty input', () => {
@@ -17,15 +16,18 @@ describe('Formatter', () => {
       expect(result).toBe('')
     })
 
-    it('should handle multiline input', () => {
+    it('should format multiline input with proper indentation', () => {
       const input = `Feature: My Feature
 
 Scenario: Test
   Given something`
       const result = format(input)
 
-      // Stub returns input unchanged
-      expect(result).toBe(input)
+      expect(result).toBe(`Feature: My Feature
+
+  Scenario: Test
+    Given something
+`)
     })
   })
 
@@ -60,7 +62,11 @@ Scenario: My Scenario`
 
     it('should handle Scenario Outline keyword', () => {
       const input = `Feature: Test
-Scenario Outline: My Outline`
+Scenario Outline: My Outline
+  Given I have <count> items
+Examples:
+| count |
+| 1 |`
       const result = format(input)
 
       expect(result).toContain('Scenario Outline:')
@@ -174,19 +180,53 @@ Given I am logged in`
       expect(result).toContain('Background:')
     })
   })
+
+  describe('indentation', () => {
+    it('should use 2-space indentation for scenarios', () => {
+      const input = `Feature: Test
+Scenario: My Scenario
+Given something`
+      const result = format(input)
+
+      // Scenario should be indented with 2 spaces
+      expect(result).toContain('  Scenario:')
+    })
+
+    it('should use 4-space indentation for steps', () => {
+      const input = `Feature: Test
+Scenario: My Scenario
+Given something`
+      const result = format(input)
+
+      // Steps should be indented with 4 spaces (2 for scenario + 2 for step)
+      expect(result).toContain('    Given')
+    })
+  })
 })
 
 describe('Check', () => {
-  it('should return false for stub implementation', () => {
-    const input = 'Feature: My Feature'
+  it('should return true for properly formatted input', () => {
+    const input = `Feature: My Feature
+
+  Scenario: Test
+    Given something
+`
     const result = check(input)
 
-    // Stub always returns false
-    expect(result).toBe(false)
+    expect(result).toBe(true)
   })
 
-  it('should handle empty input', () => {
+  it('should return true for empty input', () => {
     const result = check('')
+
+    expect(result).toBe(true)
+  })
+
+  it('should return false for improperly formatted input', () => {
+    const input = `Feature: My Feature
+Scenario: Test
+Given something`
+    const result = check(input)
 
     expect(result).toBe(false)
   })
