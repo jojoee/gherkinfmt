@@ -1,0 +1,30 @@
+/**
+ * CommonJS example for gherkinfmt
+ */
+const { check, format } = require('../dist/cjs/index.cjs');
+
+// Example Gherkin input
+const input = `
+Feature: User Login
+In order to access my account
+As a registered user
+I want to log in
+
+Scenario: Successful login
+Given I am on the login page
+When I enter valid credentials
+Then I should see the dashboard
+`;
+
+console.log('=== gherkinfmt CommonJS Example ===\n');
+
+// Check if formatted
+console.log('Is formatted:', check(input));
+
+// Format the input
+const formatted = format(input);
+console.log('\nFormatted output:');
+console.log(formatted);
+
+// Check again
+console.log('Is formatted now:', check(formatted));
