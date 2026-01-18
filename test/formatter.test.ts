@@ -1,5 +1,28 @@
 import { describe, it, expect } from 'vitest'
 import { format, check } from '../src/index.js'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+
+const INPUT_DIR = join(__dirname, '../resource/input')
+const EXPECTED_DIR = join(__dirname, '../resource/expected')
+
+/**
+ * Get all feature files from a directory
+ */
+function getFeatureFiles (dir: string): string[] {
+  try {
+    return readdirSync(dir).filter(f => f.endsWith('.feature'))
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Read file content
+ */
+function readFile (path: string): string {
+  return readFileSync(path, 'utf8')
+}
 
 describe('Formatter', () => {
   describe('basic formatting', () => {
@@ -236,4 +259,52 @@ Given something`
 
     expect(typeof result).toBe('boolean')
   })
+})
+
+describe('Input/Expected File Tests', () => {
+  const inputFiles = getFeatureFiles(INPUT_DIR)
+
+  // Test each input file against its expected output
+  for (const file of inputFiles) {
+    it(`should format ${file} correctly`, () => {
+      const inputPath = join(INPUT_DIR, file)
+      const expectedPath = join(EXPECTED_DIR, file)
+
+      const input = readFile(inputPath)
+      const expected = readFile(expectedPath)
+      const result = format(input)
+
+      // For debugging, show diff if not matching
+      if (result !== expected) {
+        console.log(`\n=== ${file} ===`)
+        console.log('Input:')
+        console.log(input)
+        console.log('\nExpected:')
+        console.log(expected)
+        console.log('\nGot:')
+        console.log(result)
+      }
+
+      expect(result).toBe(expected)
+    })
+  }
+})
+
+describe('Idempotency', () => {
+  const inputFiles = getFeatureFiles(INPUT_DIR)
+
+  for (const file of inputFiles) {
+    it(`should be idempotent for ${file}`, () => {
+      const inputPath = join(INPUT_DIR, file)
+      const input = readFile(inputPath)
+
+      // Format once
+      const firstPass = format(input)
+      // Format again
+      const secondPass = format(firstPass)
+
+      // Should be identical
+      expect(secondPass).toBe(firstPass)
+    })
+  }
 })

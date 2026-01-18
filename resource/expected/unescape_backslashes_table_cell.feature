@@ -4,18 +4,18 @@ Feature: Escaped pipes
 
   Scenario: They are the future
     Given a huge table with escaped characters
-      | \n       |
-      | \\n      |
-      | \\\n     |
-      | \\\\n    |
-      | \\\\\n   |
-      | \\\\\\n  |
-      | \|       |
-      | \\\|     |
-      | \        |
-      | a\b      |
-      | a\\b     |
-      | a\\\b    |
-      | a\\\\b   |
-      | a\       |
-      | \a       |
+      | \n      |
+      | \\n     |
+      | \\\n    |
+      | \\\\n   |
+      | \\\\\n  |
+      | \\\\\\n |
+      | \|      |
+      | \\\|    |
+      | \\      |
+      | a\\b    |
+      | a\\b    |
+      | a\\\\b  |
+      | a\\\\b  |
+      | a\\     |
+      | \\a     |

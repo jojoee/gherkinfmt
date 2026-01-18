@@ -11,7 +11,6 @@ Feature: complex docstring with JSON in it
       \"\"\"
       4
       """
-
     Given I have a complex docstring
       """
       A docstring that is not JSON

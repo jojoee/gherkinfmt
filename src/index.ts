@@ -136,8 +136,18 @@ function calculateColumnWidths (rows: readonly TableRow[]): number[] {
 
 /**
  * Escape special characters in table cells
+ *
+ * In Gherkin table cells, certain characters need escaping:
+ * - | (pipe) must be escaped as \|
+ * - \ (backslash) must be escaped as \\
+ * - newlines must be escaped as \n
+ *
+ * Note: The Gherkin parser normalizes escape sequences during parsing,
+ * so we cannot perfectly preserve the original form. Our opinionated
+ * choice is to use consistent escaping (always escape backslashes).
  */
 function escapeTableCell (value: string): string {
+  // Order matters: escape backslashes first, then pipes, then newlines
   return value
     .replace(/\\/g, '\\\\')
     .replace(/\|/g, '\\|')
