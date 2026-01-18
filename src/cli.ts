@@ -17,6 +17,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import { resolve, join, extname } from 'node:path'
+import { globSync } from 'glob'
 import { check, format } from './index.js'
 
 interface CliOptions {
@@ -109,22 +110,31 @@ function findFeatureFiles (dir: string): string[] {
 }
 
 function expandGlob (pattern: string): string[] {
-  // Simple glob expansion for common patterns
-  // For full glob support, users should use shell expansion
-
   const resolved = resolve(pattern)
 
   try {
     const stat = statSync(resolved)
 
     if (stat.isDirectory()) {
+      // If it's a directory, find all .feature files recursively
       return findFeatureFiles(resolved)
     } else if (stat.isFile()) {
+      // If it's a file, return it
       return [resolved]
     }
   } catch {
-    // Path doesn't exist or is a glob pattern
-    // Try to find matching files in current directory
+    // Path doesn't exist as a file/directory, treat as glob pattern
+    // Use glob library for pattern matching
+    try {
+      const matches = globSync(pattern, {
+        nodir: true,
+        absolute: true
+      })
+      return matches.filter(f => f.endsWith('.feature'))
+    } catch {
+      // Glob failed, return empty
+      return []
+    }
   }
 
   return []
