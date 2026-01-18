@@ -44,6 +44,14 @@ const INDENT = '  '
 const LANGUAGE_PATTERN = /^\s*#\s*language\s*:\s*([a-zA-Z\-_]+)\s*$/
 
 /**
+ * Comment context for tracking where comments should be placed
+ */
+interface CommentContext {
+  comments: readonly Comment[]
+  usedComments: Set<Comment>
+}
+
+/**
  * Parse Gherkin input into AST
  */
 function parse (input: string): GherkinDocument {
@@ -52,6 +60,62 @@ function parse (input: string): GherkinDocument {
   const matcher = new GherkinClassicTokenMatcher()
   const parser = new GherkinParser(builder, matcher)
   return parser.parse(input)
+}
+
+/**
+ * Get comments that appear before a given line
+ */
+function getCommentsBefore (
+  targetLine: number,
+  ctx: CommentContext,
+  afterLine: number = 0
+): Comment[] {
+  const result: Comment[] = []
+  for (const comment of ctx.comments) {
+    if (ctx.usedComments.has(comment)) continue
+    const commentLine = comment.location.line
+    if (commentLine > afterLine && commentLine < targetLine) {
+      result.push(comment)
+      ctx.usedComments.add(comment)
+    }
+  }
+  return result.sort((a, b) => a.location.line - b.location.line)
+}
+
+/**
+ * Get comments for a specific line range (e.g., within a data table)
+ */
+function getCommentsInRange (
+  startLine: number,
+  endLine: number,
+  ctx: CommentContext
+): Map<number, Comment[]> {
+  const result = new Map<number, Comment[]>()
+  for (const comment of ctx.comments) {
+    if (ctx.usedComments.has(comment)) continue
+    const commentLine = comment.location.line
+    if (commentLine >= startLine && commentLine <= endLine) {
+      const existing = result.get(commentLine) ?? []
+      existing.push(comment)
+      result.set(commentLine, existing)
+      ctx.usedComments.add(comment)
+    }
+  }
+  return result
+}
+
+/**
+ * Get remaining unused comments (trailing comments)
+ */
+function getRemainingComments (ctx: CommentContext): Comment[] {
+  const result: Comment[] = []
+  for (const comment of ctx.comments) {
+    if (!ctx.usedComments.has(comment)) {
+      result.push(comment)
+      ctx.usedComments.add(comment)
+    }
+  }
+  return result.sort((a, b) => a.location.line - b.location.line)
 }
 
 /**
@@ -93,15 +157,50 @@ function formatTableRow (row: TableRow, columnWidths: number[]): string {
 }
 
 /**
- * Format data table
+ * Format data table with comments
  */
-function formatDataTable (dataTable: DataTable, baseIndent: string): string[] {
+function formatDataTable (
+  dataTable: DataTable,
+  baseIndent: string,
+  ctx: CommentContext
+): string[] {
   const lines: string[] = []
   const columnWidths = calculateColumnWidths(dataTable.rows)
+
+  // Get line range for comments
+  const firstRow = dataTable.rows[0]
+  const lastRow = dataTable.rows[dataTable.rows.length - 1]
+  if (firstRow == null) return lines
+
+  const startLine = firstRow.location.line
+  const endLine = lastRow?.location.line ?? startLine
+
+  // Get comments within the table
+  const commentsInTable = getCommentsInRange(startLine, endLine, ctx)
+
   for (const row of dataTable.rows) {
+    // Check for comments before this row
+    const rowLine = row.location.line
+    for (const [commentLine, comments] of commentsInTable) {
+      if (commentLine < rowLine) {
+        for (const comment of comments) {
+          lines.push(baseIndent + comment.text.trim())
+        }
+        commentsInTable.delete(commentLine)
+      }
+    }
     lines.push(baseIndent + formatTableRow(row, columnWidths))
   }
+
   return lines
+}
+
+/**
+ * Escape docstring delimiter inside content
+ */
+function escapeDocStringContent (content: string, delimiter: string): string {
+  const escapedDelimiter = delimiter.split('').map(c => `\\${c}`).join('')
+  return content.replace(new RegExp(delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), escapedDelimiter)
 }
 
 /**
@@ -114,8 +213,8 @@ function formatDocString (docString: DocString, baseIndent: string): string[] {
 
   lines.push(baseIndent + delimiter + mediaType)
 
-  // Split content by lines and add each with proper indentation
-  const contentLines = docString.content.split('\n')
+  const escapedContent = escapeDocStringContent(docString.content, delimiter)
+  const contentLines = escapedContent.split('\n')
   for (const line of contentLines) {
     lines.push(baseIndent + line)
   }
@@ -132,14 +231,46 @@ function formatTags (tags: readonly Tag[], indent: string): string[] {
 }
 
 /**
- * Format a step
+ * Get the last line of a step (including docstring/datatable)
  */
-function formatStep (step: Step, baseIndent: string): string[] {
+function getStepLastLine (step: Step): number {
+  let lastLine = step.location.line
+  if (step.dataTable != null) {
+    const rows = step.dataTable.rows
+    const lastRow = rows[rows.length - 1]
+    if (lastRow != null) {
+      lastLine = lastRow.location.line
+    }
+  }
+  if (step.docString != null) {
+    // Estimate docstring end line
+    const docStringLines = step.docString.content.split('\n').length
+    lastLine = step.docString.location.line + docStringLines + 1
+  }
+  return lastLine
+}
+
+/**
+ * Format a step with comments
+ */
+function formatStep (
+  step: Step,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevStepEndLine: number
+): string[] {
   const lines: string[] = []
+
+  // Get comments before this step
+  const commentsBefore = getCommentsBefore(step.location.line, ctx, prevStepEndLine)
+  for (const comment of commentsBefore) {
+    lines.push(baseIndent + comment.text.trim())
+  }
+
   lines.push(baseIndent + step.keyword + step.text.trim())
 
   if (step.dataTable != null) {
-    lines.push(...formatDataTable(step.dataTable, baseIndent + INDENT))
+    lines.push(...formatDataTable(step.dataTable, baseIndent + INDENT, ctx))
   }
 
   if (step.docString != null) {
@@ -150,10 +281,21 @@ function formatStep (step: Step, baseIndent: string): string[] {
 }
 
 /**
- * Format examples section
+ * Format examples section with comments
  */
-function formatExamples (examples: Examples, baseIndent: string): string[] {
+function formatExamples (
+  examples: Examples,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevEndLine: number
+): string[] {
   const lines: string[] = []
+
+  // Comments before examples
+  const commentsBefore = getCommentsBefore(examples.location.line, ctx, prevEndLine)
+  for (const comment of commentsBefore) {
+    lines.push(baseIndent + comment.text.trim())
+  }
 
   // Tags
   if (examples.tags.length > 0) {
@@ -189,10 +331,27 @@ function formatExamples (examples: Examples, baseIndent: string): string[] {
 }
 
 /**
- * Format a scenario or scenario outline
+ * Format a scenario or scenario outline with comments
  */
-function formatScenario (scenario: Scenario, baseIndent: string): string[] {
+function formatScenario (
+  scenario: Scenario,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevEndLine: number
+): string[] {
   const lines: string[] = []
+
+  // Get first tag line or scenario line for comment placement
+  const firstTag = scenario.tags[0]
+  const scenarioStartLine = firstTag != null
+    ? firstTag.location.line
+    : scenario.location.line
+
+  // Comments before scenario (or its tags)
+  const commentsBefore = getCommentsBefore(scenarioStartLine, ctx, prevEndLine)
+  for (const comment of commentsBefore) {
+    lines.push(baseIndent + comment.text.trim())
+  }
 
   // Tags
   if (scenario.tags.length > 0) {
@@ -213,31 +372,47 @@ function formatScenario (scenario: Scenario, baseIndent: string): string[] {
 
   // Steps
   const stepIndent = baseIndent + INDENT
+  let lastStepEndLine = scenario.location.line
   for (const step of scenario.steps) {
-    lines.push(...formatStep(step, stepIndent))
+    lines.push(...formatStep(step, stepIndent, ctx, lastStepEndLine))
+    lastStepEndLine = getStepLastLine(step)
   }
 
   // Examples (for Scenario Outline)
   if (scenario.examples.length > 0) {
     lines.push('')
-    const examplesLines: string[] = []
-    for (const example of scenario.examples) {
-      if (examplesLines.length > 0) {
-        examplesLines.push('')
+    let prevExampleEndLine = lastStepEndLine
+    for (let i = 0; i < scenario.examples.length; i++) {
+      const example = scenario.examples[i]
+      if (example == null) continue
+      if (i > 0) {
+        lines.push('')
       }
-      examplesLines.push(...formatExamples(example, stepIndent))
+      lines.push(...formatExamples(example, stepIndent, ctx, prevExampleEndLine))
+      const lastRow = example.tableBody[example.tableBody.length - 1]
+      prevExampleEndLine = lastRow?.location.line ?? example.location.line
     }
-    lines.push(...examplesLines)
   }
 
   return lines
 }
 
 /**
- * Format a background
+ * Format a background with comments
  */
-function formatBackground (background: Background, baseIndent: string): string[] {
+function formatBackground (
+  background: Background,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevEndLine: number
+): string[] {
   const lines: string[] = []
+
+  // Comments before background
+  const commentsBefore = getCommentsBefore(background.location.line, ctx, prevEndLine)
+  for (const comment of commentsBefore) {
+    lines.push(baseIndent + comment.text.trim())
+  }
 
   // Background header
   const name = background.name !== '' ? ` ${background.name}` : ''
@@ -253,31 +428,88 @@ function formatBackground (background: Background, baseIndent: string): string[]
 
   // Steps
   const stepIndent = baseIndent + INDENT
+  let lastStepEndLine = background.location.line
   for (const step of background.steps) {
-    lines.push(...formatStep(step, stepIndent))
+    lines.push(...formatStep(step, stepIndent, ctx, lastStepEndLine))
+    lastStepEndLine = getStepLastLine(step)
   }
 
   return lines
 }
 
 /**
- * Format a rule child (background or scenario)
+ * Get the last line of a feature child
  */
-function formatRuleChild (child: RuleChild, baseIndent: string): string[] {
+function getFeatureChildLastLine (child: FeatureChild): number {
   if (child.background != null) {
-    return formatBackground(child.background, baseIndent)
+    const steps = child.background.steps
+    const lastStep = steps[steps.length - 1]
+    return lastStep != null ? getStepLastLine(lastStep) : child.background.location.line
   }
   if (child.scenario != null) {
-    return formatScenario(child.scenario, baseIndent)
+    const scenario = child.scenario
+    if (scenario.examples.length > 0) {
+      const lastExample = scenario.examples[scenario.examples.length - 1]
+      if (lastExample != null) {
+        const lastRow = lastExample.tableBody[lastExample.tableBody.length - 1]
+        return lastRow?.location.line ?? lastExample.location.line
+      }
+    }
+    const steps = scenario.steps
+    const lastStep = steps[steps.length - 1]
+    return lastStep != null ? getStepLastLine(lastStep) : scenario.location.line
+  }
+  if (child.rule != null) {
+    const children = child.rule.children
+    const lastChild = children[children.length - 1]
+    if (lastChild?.scenario != null) {
+      const lastStep = lastChild.scenario.steps[lastChild.scenario.steps.length - 1]
+      return lastStep != null ? getStepLastLine(lastStep) : lastChild.scenario.location.line
+    }
+    return child.rule.location.line
+  }
+  return 0
+}
+
+/**
+ * Format a rule child with comments
+ */
+function formatRuleChild (
+  child: RuleChild,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevEndLine: number
+): string[] {
+  if (child.background != null) {
+    return formatBackground(child.background, baseIndent, ctx, prevEndLine)
+  }
+  if (child.scenario != null) {
+    return formatScenario(child.scenario, baseIndent, ctx, prevEndLine)
   }
   return []
 }
 
 /**
- * Format a rule
+ * Format a rule with comments
  */
-function formatRule (rule: Rule, baseIndent: string): string[] {
+function formatRule (
+  rule: Rule,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevEndLine: number
+): string[] {
   const lines: string[] = []
+
+  const firstRuleTag = rule.tags[0]
+  const ruleStartLine = firstRuleTag != null
+    ? firstRuleTag.location.line
+    : rule.location.line
+
+  // Comments before rule
+  const commentsBefore = getCommentsBefore(ruleStartLine, ctx, prevEndLine)
+  for (const comment of commentsBefore) {
+    lines.push(baseIndent + comment.text.trim())
+  }
 
   // Tags
   if (rule.tags.length > 0) {
@@ -295,14 +527,24 @@ function formatRule (rule: Rule, baseIndent: string): string[] {
     }
   }
 
-  // Children (background, scenarios)
+  // Children
   const childIndent = baseIndent + INDENT
+  let lastChildEndLine = rule.location.line
   const childLines: string[] = []
   for (const child of rule.children) {
     if (childLines.length > 0) {
       childLines.push('')
     }
-    childLines.push(...formatRuleChild(child, childIndent))
+    childLines.push(...formatRuleChild(child, childIndent, ctx, lastChildEndLine))
+    if (child.scenario != null) {
+      const steps = child.scenario.steps
+      const lastStep = steps[steps.length - 1]
+      lastChildEndLine = lastStep != null ? getStepLastLine(lastStep) : child.scenario.location.line
+    } else if (child.background != null) {
+      const steps = child.background.steps
+      const lastStep = steps[steps.length - 1]
+      lastChildEndLine = lastStep != null ? getStepLastLine(lastStep) : child.background.location.line
+    }
   }
 
   if (childLines.length > 0) {
@@ -314,31 +556,52 @@ function formatRule (rule: Rule, baseIndent: string): string[] {
 }
 
 /**
- * Format a feature child (background, scenario, or rule)
+ * Format a feature child with comments
  */
-function formatFeatureChild (child: FeatureChild, baseIndent: string): string[] {
+function formatFeatureChild (
+  child: FeatureChild,
+  baseIndent: string,
+  ctx: CommentContext,
+  prevEndLine: number
+): string[] {
   if (child.background != null) {
-    return formatBackground(child.background, baseIndent)
+    return formatBackground(child.background, baseIndent, ctx, prevEndLine)
   }
   if (child.scenario != null) {
-    return formatScenario(child.scenario, baseIndent)
+    return formatScenario(child.scenario, baseIndent, ctx, prevEndLine)
   }
   if (child.rule != null) {
-    return formatRule(child.rule, baseIndent)
+    return formatRule(child.rule, baseIndent, ctx, prevEndLine)
   }
   return []
 }
 
 /**
- * Format a feature
+ * Format a feature with comments
  */
-function formatFeature (feature: Feature, originalText: string): string[] {
+function formatFeature (
+  feature: Feature,
+  originalText: string,
+  ctx: CommentContext
+): string[] {
   const lines: string[] = []
+
+  // Get the start line (first tag or feature keyword)
+  const firstFeatureTag = feature.tags[0]
+  const featureStartLine = firstFeatureTag != null
+    ? firstFeatureTag.location.line
+    : feature.location.line
 
   // Language comment (if present in original)
   const hasLanguage = LANGUAGE_PATTERN.test(originalText)
   if (hasLanguage && feature.language !== 'en') {
     lines.push(`# language: ${feature.language}`)
+  }
+
+  // Comments before feature (or its tags)
+  const commentsBefore = getCommentsBefore(featureStartLine, ctx, 0)
+  for (const comment of commentsBefore) {
+    lines.push(comment.text.trim())
   }
 
   // Tags
@@ -358,12 +621,14 @@ function formatFeature (feature: Feature, originalText: string): string[] {
   }
 
   // Children
+  let lastChildEndLine = feature.location.line
   const childLines: string[] = []
   for (const child of feature.children) {
     if (childLines.length > 0) {
       childLines.push('')
     }
-    childLines.push(...formatFeatureChild(child, INDENT))
+    childLines.push(...formatFeatureChild(child, INDENT, ctx, lastChildEndLine))
+    lastChildEndLine = getFeatureChildLastLine(child)
   }
 
   if (childLines.length > 0) {
@@ -371,54 +636,16 @@ function formatFeature (feature: Feature, originalText: string): string[] {
     lines.push(...childLines)
   }
 
-  return lines
-}
-
-/**
- * Format comments from AST
- * Comments are attached to the nearest following node
- */
-function insertComments (lines: string[], comments: readonly Comment[], document: GherkinDocument): string[] {
-  if (comments.length === 0) {
-    return lines
-  }
-
-  // For now, place comments at the start if they appear before feature
-  // This is a simplified implementation - full comment handling is in a separate todo
-  const result: string[] = []
-
-  // Group comments by their line numbers
-  const commentsByLine = new Map<number, Comment[]>()
-  for (const comment of comments) {
-    const line = comment.location.line
-    const existing = commentsByLine.get(line) ?? []
-    existing.push(comment)
-    commentsByLine.set(line, existing)
-  }
-
-  // Find where feature starts
-  const feature = document.feature
-  const featureStartLine = feature?.location.line ?? 1
-
-  // Add comments that appear before feature
-  const sortedCommentLines = Array.from(commentsByLine.keys()).sort((a, b) => a - b)
-
-  for (const commentLine of sortedCommentLines) {
-    if (commentLine < featureStartLine) {
-      const commentsAtLine = commentsByLine.get(commentLine) ?? []
-      for (const comment of commentsAtLine) {
-        result.push(comment.text.trim())
-      }
+  // Add trailing comments
+  const trailingComments = getRemainingComments(ctx)
+  if (trailingComments.length > 0) {
+    lines.push('')
+    for (const comment of trailingComments) {
+      lines.push(comment.text.trim())
     }
   }
 
-  // Add all formatted lines
-  result.push(...lines)
-
-  // Add trailing comments (comments after the last element)
-  // This is handled in the main format function
-
-  return result
+  return lines
 }
 
 /**
@@ -471,9 +698,14 @@ export function format (input: string): string {
   // Parse the input
   const document = parse(input)
 
+  // Create comment context
+  const ctx: CommentContext = {
+    comments: document.comments,
+    usedComments: new Set()
+  }
+
   // If no feature, might be just comments
   if (document.feature == null) {
-    // Return comments only
     if (document.comments.length > 0) {
       const commentLines = document.comments.map(c => c.text.trim())
       return commentLines.join('\n') + '\n'
@@ -481,11 +713,8 @@ export function format (input: string): string {
     return ''
   }
 
-  // Format the feature
-  let lines = formatFeature(document.feature, input)
-
-  // Insert comments
-  lines = insertComments(lines, document.comments, document)
+  // Format the feature with comments
+  const lines = formatFeature(document.feature, input, ctx)
 
   // Join lines and ensure single trailing newline
   let result = lines.join('\n')
