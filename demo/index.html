@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>gherkinfmt Demo - Gherkin Formatter</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
+  <style>
+    /* CSS Custom Properties */
+    :root {
+      --color-primary: #23d160;
+      --color-primary-hover: #2de66e;
+      --color-primary-shadow: rgba(35, 209, 96, 0.25);
+      --color-border: #3d3d3d;
+      --font-mono: "SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", monospace;
+      --font-size-code: 0.875rem;
+      --spacing-section: 2rem 1.5rem;
+      --spacing-code: 0.625em;
+      --border-radius: 4px;
+      --border-width: 1px;
+      --focus-outline: 0.125em;
+      --min-editor-height: 400px;
+    }
+
+    /* Base Layout */
+    html, body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .section {
+      padding: var(--spacing-section);
+      flex: 1;
+    }
+    
+    /* Components */
+    .box {
+      border: none;
+      box-shadow: none;
+    }
+
+    /* Typography */
+    .gherkin-textarea,
+    .output-area {
+      font-family: var(--font-mono);
+      font-size: var(--font-size-code);
+    }
+
+    /* Input Area */
+    .gherkin-textarea {
+      border: var(--border-width) solid var(--color-border);
+      resize: vertical;
+    }
+    
+    .gherkin-textarea:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 var(--focus-outline) var(--color-primary-shadow);
+    }
+    
+    /* Output Area */
+    .output-area {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      border: var(--border-width) solid var(--color-border);
+      border-radius: var(--border-radius);
+      padding: var(--spacing-code);
+      overflow: auto;
+    }
+
+    /* Editor Heights */
+    #input,
+    #output {
+      min-height: var(--min-editor-height);
+      max-height: none;
+    }
+
+    /* Links */
+    a {
+      color: var(--color-primary);
+    }
+    
+    a:hover {
+      color: var(--color-primary-hover);
+    }
+
+    /* Button overrides */
+    .button.is-primary {
+      background-color: var(--color-primary);
+    }
+    
+    .button.is-primary:hover {
+      background-color: var(--color-primary-hover);
+    }
+  </style>
+</head>
+<body>
+  <!-- Main Content -->
+  <section class="section">
+    <div class="container">
+      <div class="columns is-multiline">
+        <!-- Input Column -->
+        <div class="column is-half-desktop is-full-tablet">
+          <div class="box">
+            <div class="level">
+              <div class="level-left">
+                <h2 class="title is-5">Input (Unformatted Gherkin)</h2>
+              </div>
+              <div class="level-right">
+                <button id="formatBtn" class="button is-primary" aria-label="Format Gherkin code">Format</button>
+              </div>
+            </div>
+            <textarea id="input" class="textarea gherkin-textarea" aria-label="Gherkin input editor"></textarea>
+          </div>
+        </div>
+
+        <!-- Output Column -->
+        <div class="column is-half-desktop is-full-tablet">
+          <div class="box">
+            <div class="level">
+              <div class="level-left">
+                <h2 class="title is-5">Output (Formatted Gherkin)</h2>
+              </div>
+              <div class="level-right">
+                <button id="copyBtn" class="button is-primary" disabled aria-label="Copy formatted output">Copy</button>
+              </div>
+            </div>
+            <pre id="output" class="output-area" aria-label="Formatted Gherkin output" aria-live="polite"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="content has-text-centered">
+      <p>
+        <strong>gherkinfmt</strong> by <a href="https://github.com/jojoee">jojoee</a>.
+        <a href="https://github.com/jojoee/gherkinfmt">GitHub</a> |
+        <a href="https://www.npmjs.com/package/gherkinfmt">npm</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/gherkinfmt/dist/gherkinfmt.umd.js"></script>
+  <script>
+    // Configuration
+    const CONFIG = {
+      DEFAULT_CONTENT: `Feature: User Authentication
+  In order to protect user data
+  As a system administrator
+  I want users to authenticate before accessing the system
+
+Background:
+Given the system is running
+And the database is available
+
+@smoke @login
+Scenario: Successful login with valid credentials
+Given I am on the login page
+When I enter username "testuser"
+And I enter password "password123"
+And I click the login button
+Then I should see the dashboard
+And I should see "Welcome, testuser"
+
+Scenario Outline: Login validation
+Given I am on the login page
+When I enter username "<username>"
+And I enter password "<password>"
+Then I should see "<message>"
+
+Examples:
+| username | password | message |
+| valid | valid123 | Welcome |
+| invalid | wrong | Invalid credentials |
+| | password | Username required |`,
+      SYNC_DELAY_MS: 10
+    };
+
+    // DOM Elements
+    const elements = {
+      input: document.getElementById('input'),
+      output: document.getElementById('output'),
+      formatBtn: document.getElementById('formatBtn'),
+      copyBtn: document.getElementById('copyBtn')
+    };
+
+    /**
+     * Loads default Gherkin content
+     * @returns {void}
+     */
+    function loadDefaultContent() {
+      elements.input.value = CONFIG.DEFAULT_CONTENT;
+    }
+
+    /**
+     * Synchronizes heights between input and output areas
+     * Sets both elements to the maximum of their natural heights
+     * @returns {void}
+     */
+    function syncHeights() {
+      elements.input.style.height = 'auto';
+      elements.output.style.height = 'auto';
+      
+      const inputScrollHeight = elements.input.scrollHeight;
+      const outputScrollHeight = elements.output.scrollHeight;
+      const maxHeight = Math.max(inputScrollHeight, outputScrollHeight);
+      
+      elements.input.style.height = `${maxHeight}px`;
+      elements.output.style.height = `${maxHeight}px`;
+    }
+
+    /**
+     * Resets editor heights to their default state
+     * @returns {void}
+     */
+    function resetHeights() {
+      elements.input.style.height = '';
+      elements.output.style.height = '';
+    }
+
+    /**
+     * Updates the copy button state based on output content
+     * @param {boolean} hasValidContent - Whether output has valid content to copy
+     * @returns {void}
+     */
+    function updateCopyButton(hasValidContent) {
+      elements.copyBtn.disabled = !hasValidContent;
+    }
+
+    /**
+     * Handles formatting of Gherkin input
+     * @returns {void}
+     */
+    function handleFormat() {
+      const input = elements.input.value;
+      
+      if (!input.trim()) {
+        elements.output.textContent = '';
+        resetHeights();
+        updateCopyButton(false);
+        return;
+      }
+
+      try {
+        const formatted = gherkinfmt.format(input);
+        elements.output.textContent = formatted;
+        setTimeout(syncHeights, CONFIG.SYNC_DELAY_MS);
+        updateCopyButton(true);
+      } catch (error) {
+        elements.output.textContent = 'Error: ' + (error.message || 'Invalid Gherkin');
+        setTimeout(syncHeights, CONFIG.SYNC_DELAY_MS);
+        updateCopyButton(false);
+      }
+    }
+
+    /**
+     * Handles copying formatted output to clipboard
+     * @returns {Promise<void>}
+     */
+    async function handleCopy() {
+      const text = elements.output.textContent;
+      
+      if (!text) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (error) {
+        console.error('Failed to copy:', error);
+      }
+    }
+
+    // Event Listeners
+    elements.formatBtn.addEventListener('click', handleFormat);
+    elements.copyBtn.addEventListener('click', handleCopy);
+
+    // Initialize
+    loadDefaultContent();
+  </script>
+</body>
+</html>
