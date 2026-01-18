@@ -1,0 +1,69 @@
+{
+  "name": "gherkinfmt",
+  "version": "0.0.0-development",
+  "description": "Opinionated Gherkin formatter - zero configuration, one way to format",
+  "keywords": [
+    "gherkin",
+    "cucumber",
+    "feature",
+    "formatter",
+    "linter",
+    "bdd",
+    "cli"
+  ],
+  "homepage": "https://github.com/jojoee/gherkinfmt",
+  "bugs": {
+    "url": "https://github.com/jojoee/gherkinfmt/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jojoee/gherkinfmt.git"
+  },
+  "license": "MIT",
+  "author": "Nathachai Thongniran <inid3a@gmail.com>",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.cjs",
+      "types": "./dist/types/index.d.ts"
+    }
+  },
+  "main": "./dist/cjs/index.cjs",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "bin": {
+    "gherkinfmt": "./bin/gherkinfmt.js"
+  },
+  "files": [
+    "dist",
+    "bin",
+    "src"
+  ],
+  "scripts": {
+    "build": "npm run build:esm && npm run build:cjs && npm run build:umd && npm run build:types",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --platform=node --outfile=dist/esm/index.js --external:glob",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --platform=node --outfile=dist/cjs/index.cjs --external:glob",
+    "build:umd": "esbuild src/index.ts --bundle --format=iife --global-name=gherkinfmt --outfile=dist/gherkinfmt.umd.js",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist/types",
+    "build:cli": "esbuild src/cli.ts --bundle --format=esm --platform=node --outfile=bin/gherkinfmt.js --external:glob --banner:js='#!/usr/bin/env node'",
+    "lint": "ts-standard src/**/*.ts",
+    "lint:fix": "ts-standard --fix src/**/*.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm run build:cli"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "esbuild": "^0.19.8",
+    "glob": "^10.3.10",
+    "ts-standard": "^12.0.2",
+    "typescript": "^5.3.2",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
