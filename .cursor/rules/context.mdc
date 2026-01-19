@@ -24,7 +24,7 @@ gherkinfmt/
 ## Technology Stack
 
 - TypeScript (ES2022, strict mode)
-- Node.js >= 18.0.0 (pinned in package.json engines and CI/CD)
+- Node.js >= 20.0.0 (pinned in package.json engines and CI/CD)
 - Vitest for testing (with 80% coverage threshold)
 - esbuild for bundling (ESM, CJS, UMD formats)
 - semantic-release for versioning
