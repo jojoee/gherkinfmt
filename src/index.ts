@@ -329,12 +329,39 @@ function formatExamples (
   const allRows = [examples.tableHeader, ...examples.tableBody].filter((r): r is TableRow => r != null)
   const columnWidths = calculateColumnWidths(allRows)
 
-  if (examples.tableHeader != null) {
-    lines.push(tableIndent + formatTableRow(examples.tableHeader, columnWidths))
-  }
+  // Get line range for comments within the table
+  const firstRow = examples.tableHeader ?? examples.tableBody[0]
+  const lastRow = examples.tableBody[examples.tableBody.length - 1]
 
-  for (const row of examples.tableBody) {
-    lines.push(tableIndent + formatTableRow(row, columnWidths))
+  if (firstRow != null) {
+    const startLine = firstRow.location.line
+    const endLine = lastRow?.location.line ?? startLine
+
+    // Get comments within the table
+    const commentsInTable = getCommentsInRange(startLine, endLine, ctx)
+
+    if (examples.tableHeader != null) {
+      lines.push(tableIndent + formatTableRow(examples.tableHeader, columnWidths))
+    }
+
+    for (const row of examples.tableBody) {
+      // Check for comments before this row
+      const rowLine = row.location.line
+      for (const [commentLine, comments] of commentsInTable) {
+        if (commentLine < rowLine) {
+          for (const comment of comments) {
+            lines.push(tableIndent + comment.text.trim())
+          }
+          commentsInTable.delete(commentLine)
+        }
+      }
+      lines.push(tableIndent + formatTableRow(row, columnWidths))
+    }
+  } else {
+    // Fallback if no rows (edge case)
+    if (examples.tableHeader != null) {
+      lines.push(tableIndent + formatTableRow(examples.tableHeader, columnWidths))
+    }
   }
 
   return lines
