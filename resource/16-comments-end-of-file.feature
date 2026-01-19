@@ -5,3 +5,4 @@ Feature: some feature
         # Then the response status code should be 403
         # And the JSON nodes should be equal to:
         #     | hydra:description | Some error did happened |
+# saleStartDate is on summer time

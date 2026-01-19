@@ -1,6 +1,6 @@
 @feature_tag1 @feature_tag2
   @feature_tag3
-Feature: Minimal Scenario Outline
+Feature: Tags at various levels
 
 @scenario_tag1 @scenario_tag2
   @scenario_tag3
