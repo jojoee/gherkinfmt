@@ -78,13 +78,22 @@ Before committing changes, run these verification steps:
 
 ## Resource Files
 
-- Test examples in `resource/*.feature`
+- Test examples in `resource/*.feature` (numbered: 01-*, 02-*, etc.)
+- Expected formatted output in `resourceout/*.feature` (matches resource/ structure)
 - Use real-world Gherkin patterns for testing
+
+To regenerate expected output files:
+
+```bash
+cp -r resource/* resourceout/ && npm install && npm run build:cli && ./bin/gherkinfmt.js --write resourceout/
+```
 
 ## Post-Work
 
 After implementing a feature:
 
 1. **Update README.md** - Document new formatting rules or API changes
-2. **Update resource files** - Add test examples
+2. **Update resource files**:
+   - Add examples to `resource/all-cases.feature`
+   - Create case file in `resource/` folder (e.g., `23-new-feature.feature`)
 3. **Git commit** - Use semantic-release pattern (feat:, fix:, docs:, etc.)

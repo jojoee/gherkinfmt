@@ -229,16 +229,9 @@ node bin/gherkinfmt.js --write resource/tc1-ALL_TEST_CASES_CONSOLIDATED.feature
 node bin/gherkinfmt.js --write resource/
 ```
 
-## TODO
-
-- [ ] Implement lexer
-- [ ] Implement parser
-- [ ] Implement formatter
-- [ ] Add formatting rules
-- [ ] Add Mutation test
-
 ## Related
 
 - [Gherkin Specification](https://cucumber.io/docs/gherkin/reference/)
 - [Cucumber](https://cucumber.io/)
+- [prettier-plugin-gherkin](https://github.com/mapado/prettier-plugin-gherkin) - Prettier plugin for Gherkin files
 - [Standard.js](https://standardjs.com/) - Inspiration for zero-config philosophy
