@@ -3,8 +3,8 @@ import { format, check } from '../src/index.js'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 
-const INPUT_DIR = join(__dirname, '../resource/input')
-const EXPECTED_DIR = join(__dirname, '../resource/expected')
+const INPUT_DIR = join(__dirname, '../resource')
+const EXPECTED_DIR = join(__dirname, '../resourceout')
 
 /**
  * Get all feature files from a directory
