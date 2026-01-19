@@ -117,11 +117,13 @@ These rules are **not configurable** - that's the point!
 | Indentation | 2 spaces |
 | Feature keyword | No indentation |
 | Background/Scenario/Scenario Outline | 2 spaces |
-| Steps (Given/When/Then/And/But) | 4 spaces |
+| Rule keyword | 2 spaces |
+| Steps (Given/When/Then/And/But/*) | 4 spaces |
 | Examples | 4 spaces |
 | Data tables | Aligned columns |
-| Doc strings | Preserved |
-| Tags | On line before element |
+| Doc strings | Preserved with media type |
+| Tags | One per line, before element |
+| Comments | Preserved in place |
 | Trailing whitespace | Removed |
 | Blank lines | Single between scenarios |
 | End of file | Single newline |
@@ -152,12 +154,15 @@ format('Feature:My Feature');
 - Background
 - Scenario
 - Scenario Outline with Examples
-- Steps (Given, When, Then, And, But)
-- Data tables
-- Doc strings (triple quotes)
+- Steps (Given, When, Then, And, But, *)
+- Data tables (with column alignment)
+- Doc strings (triple quotes with media type)
 - Tags (@tag)
 - Comments (#)
 - Rule keyword (Gherkin 6+)
+- Descriptions (Feature, Scenario, Rule)
+- Unicode and special characters
+- Escaped characters in tables
 
 ## Integration
 
@@ -193,6 +198,8 @@ npx gherkinfmt --check "features/**/*.feature"
 
 ## Development
 
+### Commands
+
 ```bash
 # Install dependencies
 npm install
@@ -217,13 +224,13 @@ npm run lint
 # Run locally
 
 # Check a single file
-node bin/gherkinfmt.js --check resource/tc1-ALL_TEST_CASES_CONSOLIDATED.feature
+node bin/gherkinfmt.js --check resource/01-minimal.feature
 
 # Check entire resource folder
 node bin/gherkinfmt.js --check resource/
 
 # Format a single file (writes changes)
-node bin/gherkinfmt.js --write resource/tc1-ALL_TEST_CASES_CONSOLIDATED.feature
+node bin/gherkinfmt.js --write resource/all-cases.feature
 
 # Format entire resource folder (writes changes)
 node bin/gherkinfmt.js --write resource/
