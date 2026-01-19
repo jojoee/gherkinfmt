@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Build output (will be built in container)
+dist/
+bin/gherkinfmt.js
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Test files
+test/
+coverage/
+*.test.ts
+
+# CI/CD
+.github/
+
+# Documentation
+README.md
+*.md
+
+# Docker files (avoid recursion)
+Dockerfile
+.dockerignore
+docker-compose.yml
