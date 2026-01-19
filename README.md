@@ -41,16 +41,22 @@ npm install -g gherkinfmt
 # Check if files are formatted (validates without modifying)
 gherkinfmt --check file.feature
 
-# Check multiple files
+# Check multiple files with glob pattern
 gherkinfmt --check "src/**/*.feature"
 
-# Check all .feature files in directory
+# Check all .feature files in current directory
+gherkinfmt --check "*.feature"
+
+# Check all .feature files in directory (recursive)
 gherkinfmt --check src/
 
 # Format files in-place (overwrites)
 gherkinfmt --write file.feature
 
-# Format all .feature files in directory
+# Format multiple files with glob pattern
+gherkinfmt --write "src/**/*.feature"
+
+# Format all .feature files in directory (recursive)
 gherkinfmt --write src/
 
 # Show help
@@ -59,6 +65,12 @@ gherkinfmt --help
 # Show version
 gherkinfmt --version
 ```
+
+Glob patterns support:
+- `*` - matches any characters except path separator
+- `**` - matches any characters including path separator (recursive)
+- `?` - matches single character
+- `{a,b}` - matches either pattern
 
 Exit codes:
 - `0` - All files are formatted correctly (check) or formatted successfully (write)

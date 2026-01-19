@@ -69,6 +69,30 @@ Before committing changes, run these verification steps:
 3. **Code Coverage**: `npm run test:coverage` - Check coverage metrics
 4. **Build**: `npm run build && npm run build:cli` - Ensure all formats build successfully
 
+## Verification Steps (File Pattern Matching)
+
+Verify glob pattern support works correctly:
+
+```bash
+# --check tests
+./bin/gherkinfmt.js --check resource/01-minimal.feature  # Single file
+./bin/gherkinfmt.js --check resource/                    # Directory
+./bin/gherkinfmt.js --check "resource/**/*.feature"      # Glob with **
+./bin/gherkinfmt.js --check "resource/*.feature"         # Glob with wildcard
+./bin/gherkinfmt.js --check "nonexistent/**/*.feature"   # Non-matching (error expected)
+
+# --write tests
+./bin/gherkinfmt.js --write resourceout/01-minimal.feature  # Single file
+./bin/gherkinfmt.js --write resourceout/                    # Directory
+./bin/gherkinfmt.js --write "resourceout/**/*.feature"      # Glob with **
+./bin/gherkinfmt.js --write "resourceout/*.feature"         # Glob with wildcard
+
+# Extension filter test
+cp resource/01-minimal.feature resource/01-minimal.notfeature
+./bin/gherkinfmt.js --check "resource/01-minimal.*"   # Should process 1 .feature file only
+rm resource/01-minimal.notfeature
+```
+
 ## Error Handling
 
 - Use try-catch blocks with graceful degradation

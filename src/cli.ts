@@ -17,7 +17,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import { resolve, join, extname } from 'node:path'
-import { globSync } from 'glob'
+import fg from 'fast-glob'
 import { check, format } from './index.js'
 
 interface CliOptions {
@@ -123,16 +123,11 @@ function expandGlob (pattern: string): string[] {
       return [resolved]
     }
   } catch {
-    // Path doesn't exist as a file/directory, treat as glob pattern
-    // Use glob library for pattern matching
+    // Path doesn't exist, treat as glob pattern
     try {
-      const matches = globSync(pattern, {
-        nodir: true,
-        absolute: true
-      })
+      const matches = fg.sync(pattern, { onlyFiles: true, absolute: true })
       return matches.filter(f => f.endsWith('.feature'))
     } catch {
-      // Glob failed, return empty
       return []
     }
   }

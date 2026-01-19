@@ -42,11 +42,11 @@
   ],
   "scripts": {
     "build": "npm run build:esm && npm run build:cjs && npm run build:umd && npm run build:types",
-    "build:esm": "esbuild src/index.ts --bundle --format=esm --platform=node --outfile=dist/esm/index.js --external:glob",
-    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --platform=node --outfile=dist/cjs/index.cjs --external:glob",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --platform=node --outfile=dist/esm/index.js --external:fast-glob",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --platform=node --outfile=dist/cjs/index.cjs --external:fast-glob",
     "build:umd": "esbuild src/index.ts --bundle --format=iife --global-name=gherkinfmt --outfile=dist/gherkinfmt.umd.js",
     "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist/types",
-    "build:cli": "esbuild src/cli.ts --bundle --format=esm --platform=node --outfile=bin/gherkinfmt.js --external:glob --banner:js='#!/usr/bin/env node'",
+    "build:cli": "esbuild src/cli.ts --bundle --format=esm --platform=node --outfile=bin/gherkinfmt.js --external:fast-glob --banner:js='#!/usr/bin/env node'",
     "lint": "ts-standard src/**/*.ts",
     "lint:fix": "ts-standard --fix src/**/*.ts",
     "test": "vitest run",
@@ -58,7 +58,6 @@
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^1.0.0",
     "esbuild": "^0.19.8",
-    "glob": "^10.5.0",
     "ts-standard": "^12.0.2",
     "typescript": "^5.3.2",
     "vitest": "^1.0.0"
@@ -68,6 +67,7 @@
   },
   "dependencies": {
     "@cucumber/gherkin": "^37.0.1",
-    "@cucumber/messages": "^31.2.0"
+    "@cucumber/messages": "^31.2.0",
+    "fast-glob": "^3.3.2"
   }
 }
