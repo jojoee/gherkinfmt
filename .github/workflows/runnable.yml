@@ -42,28 +42,28 @@ jobs:
           node test-esm.mjs
 
       - name: Test CLI help
-        run: node bin/hoconfmt.js --help
+        run: node bin/gherkinfmt.js --help
 
       - name: Test CLI version
-        run: node bin/hoconfmt.js --version
+        run: node bin/gherkinfmt.js --version
 
-      - name: Test CLI with all-cases.conf
+      - name: Test CLI with all-cases.feature
         run: |
           # Copy test file to avoid modifying original
-          cp resource/all-cases.conf test.conf
+          cp resource/all-cases.feature test.feature
           
-          # Test --check mode (should fail on unformatted INVALID section)
-          if node bin/hoconfmt.js --check test.conf; then
+          # Test --check mode (should fail on unformatted file)
+          if node bin/gherkinfmt.js --check test.feature; then
             echo "ERROR: --check should have failed on unformatted file"
             exit 1
           fi
           
           # Test --write mode to format the file
-          node bin/hoconfmt.js --write test.conf
+          node bin/gherkinfmt.js --write test.feature
           
           # Test --check mode on formatted file (should pass)
-          node bin/hoconfmt.js --check test.conf
+          node bin/gherkinfmt.js --check test.feature
           
           # Verify formatting applied correctly
           echo "Formatted file preview:"
-          head -n 20 test.conf
+          head -n 20 test.feature
